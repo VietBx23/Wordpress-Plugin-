@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QNote Auto Import Frontend</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2em; background: #f8f9fa; }
+    h1 { color: #2c3e50; }
+    label, input, button { font-size: 1em; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1em; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 0.5em; text-align: left; }
+    th { background: #e9ecef; }
+    tr:nth-child(even) { background: #f2f2f2; }
+    .loading { color: #007bff; }
+  </style>
+</head>
+<body>
+  <h1>QNote Auto Import</h1>
+  <form id="crawlForm">
+    <label for="numBooks">Số lượng truyện cần crawl:</label>
+    <input type="number" id="numBooks" name="numBooks" min="1" value="2" required>
+    <button type="submit">Crawl</button>
+  </form>
+  <div id="status"></div>
+  <table id="resultsTable" style="display:none;">
+    <thead>
+      <tr>
+        <th>Tiêu đề</th>
+        <th>Mô tả</th>
+        <th>Thể loại</th>
+        <th>Chương</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <script>
+    const form = document.getElementById('crawlForm');
+    const statusDiv = document.getElementById('status');
+    const table = document.getElementById('resultsTable');
+    const tbody = table.querySelector('tbody');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const numBooks = document.getElementById('numBooks').value;
+      statusDiv.textContent = 'Đang crawl dữ liệu...';
+      table.style.display = 'none';
+      tbody.innerHTML = '';
+      try {
+        const res = await fetch('http://127.0.0.1:8000/api/crawl', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ num_books: Number(numBooks) })
+        });
+        if (!res.ok) throw new Error('Lỗi khi lấy dữ liệu');
+        const books = await res.json();
+        if (!Array.isArray(books) || books.length === 0) {
+          statusDiv.textContent = 'Không có kết quả.';
+          return;
+        }
+        statusDiv.textContent = '';
+        table.style.display = '';
+        books.forEach(book => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${book.title}</td>
+            <td>${book.description}</td>
+            <td>${book.category}</td>
+            <td>
+              <ul>
+                ${book.chapters.map(ch => `<li><strong>${ch.title}</strong></li>`).join('')}
+              </ul>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        statusDiv.textContent = 'Lỗi: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
